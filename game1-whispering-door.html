@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>The Whispering Door — Syllable Magic</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font-family:'Georgia',serif;touch-action:none;user-select:none}
+canvas{display:block;position:fixed;top:0;left:0}
+
+/* ── HUD ── */
+#hud{position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;display:flex;flex-direction:column;align-items:center}
+
+#top-bar{margin-top:env(safe-area-inset-top,16px);margin-top:max(16px,env(safe-area-inset-top));text-align:center;padding:0 16px}
+#round-label{font-size:13px;letter-spacing:3px;text-transform:uppercase;color:#a78bfa;opacity:.75}
+#instruction{font-size:20px;color:#e9d5ff;margin-top:6px;text-shadow:0 0 20px #8b5cf6;min-height:28px;transition:color .4s}
+
+#word-reveal{
+  margin-top:24px;font-size:clamp(32px,10vw,56px);
+  color:#ffd700;letter-spacing:5px;
+  text-shadow:0 0 20px #ffd700,0 0 50px #ffa500;
+  opacity:0;transition:opacity .5s;
+  pointer-events:none;text-align:center;padding:0 20px;
+}
+
+#support-label{
+  font-size:13px;color:#fbbf24;letter-spacing:2px;
+  margin-top:6px;opacity:0;transition:opacity .4s;
+  text-transform:uppercase;
+}
+
+/* tap dots */
+#tap-dots{
+  position:fixed;bottom:260px;left:50%;transform:translateX(-50%);
+  display:flex;flex-wrap:wrap;justify-content:center;gap:10px;
+  max-width:300px;pointer-events:none;
+}
+.dot{
+  width:22px;height:22px;border-radius:50%;
+  border:2px solid #8b5cf6;background:transparent;
+  transition:all .15s;
+}
+.dot.lit{
+  background:#c4b5fd;
+  box-shadow:0 0 12px #8b5cf6,0 0 24px #8b5cf6;
+  transform:scale(1.25);
+}
+
+/* controls */
+#controls{
+  position:fixed;bottom:max(env(safe-area-inset-bottom,24px),24px);
+  left:50%;transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:14px;
+  pointer-events:all;
+}
+
+#tap-btn{
+  width:clamp(130px,35vw,160px);height:clamp(130px,35vw,160px);
+  border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,#c4b5fd,#6d28d9 60%,#4c1d95);
+  border:3px solid #a78bfa;color:#fff;
+  font-size:clamp(14px,4vw,17px);font-family:Georgia,serif;letter-spacing:1px;
+  cursor:pointer;
+  box-shadow:0 0 28px rgba(139,92,246,.7),0 0 60px rgba(139,92,246,.3),inset 0 2px 6px rgba(255,255,255,.2);
+  transition:transform .1s,box-shadow .1s;
+  -webkit-tap-highlight-color:transparent;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+}
+#tap-btn:active{transform:scale(.9);box-shadow:0 0 60px rgba(139,92,246,1),0 0 100px rgba(139,92,246,.6)}
+#tap-btn.disabled{opacity:.35;pointer-events:none}
+#tap-glyph{font-size:26px;line-height:1}
+
+#row-btns{display:flex;gap:14px}
+#cast-btn,#repeat-btn{
+  padding:13px 28px;border-radius:28px;font-family:Georgia,serif;font-size:16px;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;transition:opacity .3s,transform .1s;
+}
+#cast-btn{
+  background:linear-gradient(135deg,#fbbf24,#d97706);
+  border:2px solid #fde68a;color:#1a0f00;font-weight:bold;
+  box-shadow:0 0 18px rgba(251,191,36,.5);
+  display:none;
+}
+#cast-btn:active{transform:scale(.95)}
+#repeat-btn{
+  background:rgba(139,92,246,.2);border:1px solid rgba(167,139,250,.5);
+  color:#c4b5fd;display:none;
+}
+#repeat-btn:active{transform:scale(.95)}
+
+/* score stars */
+#stars{position:fixed;top:max(16px,env(safe-area-inset-top));right:16px;display:flex;gap:6px}
+.star{font-size:24px;color:#ffd700;opacity:.2;transition:opacity .5s,text-shadow .5s}
+.star.earned{opacity:1;text-shadow:0 0 16px #ffd700,0 0 32px #ffa500}
+
+/* feedback splash */
+#feedback{
+  position:fixed;top:42%;left:50%;transform:translate(-50%,-50%);
+  font-size:72px;opacity:0;pointer-events:none;transition:opacity .25s;
+  text-shadow:0 0 40px currentColor;
+}
+
+/* overlay screens */
+.screen{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:30px;text-align:center;
+}
+#start-screen{background:rgba(6,3,18,.97)}
+#end-screen{background:rgba(6,3,18,.95);display:none}
+
+.screen-title{font-size:clamp(28px,8vw,42px);color:#ffd700;text-shadow:0 0 30px #ffd700;margin-bottom:10px}
+.screen-sub{font-size:clamp(15px,4vw,20px);color:#c4b5fd;margin-bottom:10px}
+.screen-desc{font-size:clamp(13px,3.5vw,16px);color:#a78bfa;line-height:1.7;margin-bottom:36px;max-width:380px}
+.screen-btn{
+  padding:16px 48px;border-radius:32px;font-family:Georgia,serif;font-size:clamp(17px,5vw,21px);
+  background:linear-gradient(135deg,#8b5cf6,#6d28d9);border:2px solid #c4b5fd;
+  color:#fff;cursor:pointer;box-shadow:0 0 30px rgba(139,92,246,.5);
+  -webkit-tap-highlight-color:transparent;
+}
+.screen-btn:active{transform:scale(.96)}
+
+#skill-tag{
+  font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#6d28d9;
+  margin-bottom:18px;background:rgba(139,92,246,.15);padding:5px 14px;border-radius:20px;
+  border:1px solid rgba(139,92,246,.3);
+}
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<!-- HUD (always present, shown during gameplay) -->
+<div id="hud">
+  <div id="top-bar">
+    <div id="round-label">Round 1 of 3</div>
+    <div id="instruction">Get ready…</div>
+  </div>
+  <div id="word-reveal"></div>
+  <div id="support-label">✦ visual support</div>
+</div>
+
+<div id="stars">
+  <span class="star" id="s0">★</span>
+  <span class="star" id="s1">★</span>
+  <span class="star" id="s2">★</span>
+</div>
+
+<div id="tap-dots"></div>
+
+<div id="controls">
+  <div id="row-btns">
+    <button id="repeat-btn">🔊 Again</button>
+    <button id="cast-btn">⚡ Cast!</button>
+  </div>
+  <button id="tap-btn" class="disabled">
+    <span id="tap-glyph">✦</span>
+    <span>TAP</span>
+  </button>
+</div>
+
+<div id="feedback"></div>
+
+<!-- START SCREEN -->
+<div class="screen" id="start-screen">
+  <div id="skill-tag">Phonological Awareness · Syllable Detection</div>
+  <div class="screen-title">✦ The Whispering Door ✦</div>
+  <div class="screen-sub">A Spell of Syllables</div>
+  <div class="screen-desc">
+    An ancient vault door guards powerful magic.<br>
+    It will whisper a secret word — listen carefully,<br>
+    then <strong style="color:#c4b5fd">tap once for each syllable</strong><br>
+    to knock the door open with your spell.
+  </div>
+  <button class="screen-btn" id="start-btn">Begin</button>
+</div>
+
+<!-- END SCREEN -->
+<div class="screen" id="end-screen">
+  <div class="screen-title" id="end-title"></div>
+  <div class="screen-sub" id="end-score"></div>
+  <div class="screen-desc" id="end-msg"></div>
+  <button class="screen-btn" id="play-again">Play Again</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+<script>
+// ─────────────────────────────────────────────
+// CURRICULUM DATA
+// Domain: Phonological Awareness > Detection > Syllable Counting
+// Modality: Auditory → Tactile (tap) → Visual/Auditory feedback
+// Source: Reading Exercise to Game Mechanic.csv, row 20
+// Sample items used directly from CSV
+// ─────────────────────────────────────────────
+const ALL_WORDS = [
+  // from CSV directly
+  { w:'smaggle',     s:2 },
+  { w:'shneak',      s:1 },
+  { w:'discrete',    s:2 },
+  { w:'misdirection',s:4 },
+  { w:'invisible',   s:4 },
+  { w:'intentionally',s:5},
+  // supplemental (same skill level)
+  { w:'backyard',    s:2 },
+  { w:'unless',      s:2 },
+  { w:'subject',     s:2 },
+  { w:'oatmeal',     s:2 },
+  { w:'recording',   s:3 },
+  { w:'dismissive',  s:3 },
+];
+
+// ─────────────────────────────────────────────
+// GAME STATE
+// ─────────────────────────────────────────────
+let phase = 'start';   // start | speaking | tapping | judging | end
+let roundIdx  = 0;
+let score     = 0;
+let taps      = 0;
+let words     = [];    // 3 words for this session
+let canRepeat = true;
+
+const starEls    = [0,1,2].map(i => document.getElementById('s'+i));
+const roundLabel = document.getElementById('round-label');
+const instruction= document.getElementById('instruction');
+const wordReveal = document.getElementById('word-reveal');
+const suppLabel  = document.getElementById('support-label');
+const tapDotsEl  = document.getElementById('tap-dots');
+const tapBtn     = document.getElementById('tap-btn');
+const castBtn    = document.getElementById('cast-btn');
+const repeatBtn  = document.getElementById('repeat-btn');
+const feedbackEl = document.getElementById('feedback');
+const startScr   = document.getElementById('start-screen');
+const endScr     = document.getElementById('end-screen');
+
+// ─────────────────────────────────────────────
+// THREE.JS
+// ─────────────────────────────────────────────
+const canvas   = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+
+const scene  = new THREE.Scene();
+scene.background = new THREE.Color(0x050210);
+scene.fog        = new THREE.FogExp2(0x050210, 0.038);
+
+const camera = new THREE.PerspectiveCamera(62, innerWidth/innerHeight, 0.1, 80);
+camera.position.set(0, 1.8, 9);
+camera.lookAt(0, 2.2, 0);
+
+// ── Lights ──────────────────────────────────
+scene.add(new THREE.AmbientLight(0x1a0a2e, 1.2));
+
+const purplePoint = new THREE.PointLight(0x9333ea, 4, 22);
+purplePoint.position.set(0, 6, 4);
+scene.add(purplePoint);
+
+const bluePoint = new THREE.PointLight(0x3b82f6, 2.5, 18);
+bluePoint.position.set(-5, 4, 1);
+scene.add(bluePoint);
+
+const goldPoint = new THREE.PointLight(0xfbbf24, 0, 14);
+goldPoint.position.set(0, 3.5, -2);
+scene.add(goldPoint);
+
+const wrongPoint = new THREE.PointLight(0xef4444, 0, 12);
+wrongPoint.position.set(0, 3, -3);
+scene.add(wrongPoint);
+
+// ── Floor ───────────────────────────────────
+const floorMat = new THREE.MeshStandardMaterial({color:0x0d0820,roughness:.9,metalness:.15});
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(14,32),floorMat);
+floor.rotation.x = -Math.PI/2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// Subtle tile grid lines via a second transparent grid
+const gridHelper = new THREE.GridHelper(14, 14, 0x2a1a4e, 0x1a0a2e);
+gridHelper.position.y = 0.002;
+scene.add(gridHelper);
+
+// ── Walls & ceiling ─────────────────────────
+const wallMat = new THREE.MeshStandardMaterial({color:0x110822,roughness:.92});
+const mkWall = (w,h,d,x,y,z) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d),wallMat);
+  m.position.set(x,y,z);
+  scene.add(m);
+};
+mkWall(.5,10,32, -7,5,0);   // left wall
+mkWall(.5,10,32,  7,5,0);   // right wall
+mkWall(14,.5,32,  0,9,0);   // ceiling
+mkWall(14,10,.5,  0,5,-16); // back wall
+
+// ── Torches ─────────────────────────────────
+function mkTorch(x, z) {
+  const g = new THREE.Group();
+  g.position.set(x, 3.8, z);
+
+  // bracket
+  const br = new THREE.Mesh(
+    new THREE.CylinderGeometry(.05,.08,.35,8),
+    new THREE.MeshStandardMaterial({color:0x3d2a18,roughness:.8})
+  );
+  br.position.y = -.1;
+  g.add(br);
+
+  // flame glow sphere
+  const flameMat = new THREE.MeshStandardMaterial({
+    color:0xff7700, emissive:0xff5500, emissiveIntensity:2.5,
+    transparent:true, opacity:.9
+  });
+  const flame = new THREE.Mesh(new THREE.SphereGeometry(.14,8,8), flameMat);
+  flame.position.y = .2;
+  g.add(flame);
+
+  const pl = new THREE.PointLight(0xff8800, 2, 6);
+  pl.position.copy(flame.position);
+  g.add(pl);
+
+  scene.add(g);
+  return {flame, pl};
+}
+
+const torches = [
+  mkTorch(-6.4,  4.5), mkTorch( 6.4,  4.5),
+  mkTorch(-6.4,  0.0), mkTorch( 6.4,  0.0),
+  mkTorch(-6.4, -4.5), mkTorch( 6.4, -4.5),
+];
+
+// ── Door group ──────────────────────────────
+const doorGrp = new THREE.Group();
+doorGrp.position.set(0, 0, -5);
+scene.add(doorGrp);
+
+// Frame
+const frameMat = new THREE.MeshStandardMaterial({
+  color:0x1e0d3a, roughness:.5, metalness:.55,
+  emissive:0x2d0f56, emissiveIntensity:.25,
+});
+const mkFrame = (w,h,d,x,y) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d),frameMat);
+  m.position.set(x,y,0);
+  m.castShadow = true;
+  doorGrp.add(m);
+};
+mkFrame(.65,6.2,.5, -1.85,3.1);  // left pillar
+mkFrame(.65,6.2,.5,  1.85,3.1);  // right pillar
+mkFrame(4.4,.65,.5,  0,6.45);    // lintel
+mkFrame(4.4,.4,.5,   0,.2);      // threshold
+
+// Arch top (faked with a flattened sphere)
+const archMat = frameMat.clone();
+const arch = new THREE.Mesh(new THREE.SphereGeometry(1.55,.32,16,0,Math.PI*2,0,Math.PI*.5), archMat);
+arch.rotation.x = -Math.PI/2;
+arch.scale.set(1.35,.55,1);
+arch.position.set(0,6.45,0);
+doorGrp.add(arch);
+
+// Door panels (pivot-hinged)
+const panelMat = new THREE.MeshStandardMaterial({
+  color:0x160930, roughness:.45, metalness:.65,
+  emissive:0x200850, emissiveIntensity:.3,
+});
+
+function mkPanel(side) {
+  const pivot = new THREE.Group();
+  const hx = side * 1.55;            // hinge x
+  pivot.position.set(hx, .2, 0);
+  doorGrp.add(pivot);
+
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(1.45,6.0,.2), panelMat);
+  panel.position.x = -side * .725;   // offset from hinge
+  panel.castShadow = true;
+  pivot.add(panel);
+
+  // Rune cross decorations
+  const runeMat = new THREE.MeshStandardMaterial({
+    color:0x9333ea, emissive:0x9333ea, emissiveIntensity:.9
+  });
+  const mkRune = (y) => {
+    const horiz = new THREE.Mesh(new THREE.BoxGeometry(.55,.06,.06), runeMat);
+    const vert  = new THREE.Mesh(new THREE.BoxGeometry(.06,.55,.06), runeMat);
+    [horiz,vert].forEach(r => { r.position.set(0,y,.12); panel.add(r); });
+  };
+  [-1.5,-.5,.5,1.5].forEach(mkRune);
+
+  // Handle knob
+  const knobMat = new THREE.MeshStandardMaterial({
+    color:0xfbbf24, emissive:0xfbbf24, emissiveIntensity:.5, metalness:.9, roughness:.1
+  });
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(.11,12,12), knobMat);
+  knob.position.set(-side * .9, 0, .14);
+  panel.add(knob);
+
+  return {pivot, panel, runeMat};
+}
+
+const leftPanel  = mkPanel( 1);
+const rightPanel = mkPanel(-1);
+
+// Central lock gem (the main animated element)
+const lockMat = new THREE.MeshStandardMaterial({
+  color:0xff1e4d, emissive:0xff1e4d, emissiveIntensity:2,
+  metalness:.7, roughness:.05,
+});
+const lockGem = new THREE.Mesh(new THREE.OctahedronGeometry(.22,0), lockMat);
+lockGem.position.set(0,3.2,.18);
+doorGrp.add(lockGem);
+
+// ── Floating orbs (tap feedback) ────────────
+// 5 small orbs that float around the door
+const orbGroup = new THREE.Group();
+orbGroup.position.set(0,3.2,-4.7);
+scene.add(orbGroup);
+const orbMeshes = [];
+const orbMat = new THREE.MeshStandardMaterial({
+  color:0xc4b5fd, emissive:0xc4b5fd, emissiveIntensity:.4,
+  transparent:true, opacity:.6
+});
+for(let i=0;i<5;i++){
+  const o = new THREE.Mesh(new THREE.SphereGeometry(.07,8,8), orbMat.clone());
+  orbGroup.add(o);
+  orbMeshes.push(o);
+}
+
+// ── Ambient dust particles ───────────────────
+const PDUST = 300;
+const dustGeo = new THREE.BufferGeometry();
+const dPos = new Float32Array(PDUST*3);
+const dVel = [];
+for(let i=0;i<PDUST;i++){
+  dPos[i*3]   = (Math.random()-.5)*12;
+  dPos[i*3+1] = Math.random()*7;
+  dPos[i*3+2] = (Math.random()-.5)*12 - 2;
+  dVel.push({x:(Math.random()-.5)*.008, y:Math.random()*.006+.002, z:(Math.random()-.5)*.006});
+}
+dustGeo.setAttribute('position', new THREE.BufferAttribute(dPos,3));
+const dustMat = new THREE.PointsMaterial({color:0x8b5cf6, size:.04, transparent:true, opacity:.5});
+scene.add(new THREE.Points(dustGeo,dustMat));
+
+// ── Burst particles (correct answer) ─────────
+const PBURST = 400;
+const burstGeo = new THREE.BufferGeometry();
+const bPos = new Float32Array(PBURST*3);
+const bVel = [];
+const bOrigin = new THREE.Vector3(0,3.2,-4.7);
+for(let i=0;i<PBURST;i++){
+  bPos[i*3]=bOrigin.x; bPos[i*3+1]=bOrigin.y; bPos[i*3+2]=bOrigin.z;
+  const theta=Math.random()*Math.PI*2;
+  const phi  =Math.random()*Math.PI;
+  const spd  =Math.random()*.12+.03;
+  bVel.push({
+    x:Math.sin(phi)*Math.cos(theta)*spd,
+    y:Math.cos(phi)*spd+.04,
+    z:Math.sin(phi)*Math.sin(theta)*spd*.6,
+    gy:-.004,
+  });
+}
+burstGeo.setAttribute('position', new THREE.BufferAttribute(bPos,3));
+const burstMat = new THREE.PointsMaterial({color:0xffd700, size:.1, transparent:true, opacity:0});
+scene.add(new THREE.Points(burstGeo,burstMat));
+let burstT = 0;
+
+// ── Wrong-answer lightning effect (line segments) ─
+const lightningMat = new THREE.LineBasicMaterial({color:0xef4444, transparent:true, opacity:0});
+const lightningGeo = new THREE.BufferGeometry();
+const lPos = new Float32Array(20*3);
+lightningGeo.setAttribute('position', new THREE.BufferAttribute(lPos,3));
+scene.add(new THREE.LineSegments(lightningGeo, lightningMat));
+let wrongT = 0;
+
+function flashLightning() {
+  wrongT = 0.6;
+  wrongPoint.intensity = 8;
+}
+
+function updateLightning(dt) {
+  if(wrongT <= 0) { lightningMat.opacity=0; wrongPoint.intensity=0; return; }
+  wrongT -= dt;
+  lightningMat.opacity = wrongT > 0 ? .8 * (wrongT/.6) : 0;
+  wrongPoint.intensity = wrongT > 0 ? 6*(wrongT/.6) : 0;
+
+  // Regenerate zigzag from door center
+  const lp = lightningGeo.attributes.position.array;
+  let cx=0, cy=3.2, cz=-4.8;
+  for(let i=0;i<10;i++){
+    lp[i*6+0]=cx; lp[i*6+1]=cy; lp[i*6+2]=cz;
+    cx += (Math.random()-.5)*.6;
+    cy += (Math.random()-.5)*.5;
+    cz += (Math.random()-.5)*.3;
+    lp[i*6+3]=cx; lp[i*6+4]=cy; lp[i*6+5]=cz;
+  }
+  lightningGeo.attributes.position.needsUpdate = true;
+}
+
+// ── Door animation state ─────────────────────
+let doorOpen   = 0;  // 0=closed, 1=open
+let doorTarget = 0;
+let doorShakeT = 0;
+
+function openDoor()  { doorTarget = 1; }
+function closeDoor() { doorTarget = 0; }
+function shakeDoor() { doorShakeT = 0.55; }
+
+// ── Render loop ──────────────────────────────
+const clock = new THREE.Clock();
+let t = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), .05);
+  t += dt;
+
+  // Torches flicker
+  torches.forEach((tc,i) => {
+    const f = Math.sin(t*9+i*1.7)*0.25 + Math.sin(t*17+i)*0.1;
+    tc.flame.scale.setScalar(0.85 + f*.3 + Math.random()*.05);
+    tc.pl.intensity = 1.8 + f;
+  });
+
+  // Dust
+  for(let i=0;i<PDUST;i++){
+    dPos[i*3]   += dVel[i].x*dt*60;
+    dPos[i*3+1] += dVel[i].y*dt*60;
+    dPos[i*3+2] += dVel[i].z*dt*60;
+    if(dPos[i*3+1]>7) dPos[i*3+1]=0;
+    if(Math.abs(dPos[i*3])>6)  dVel[i].x*=-1;
+    if(Math.abs(dPos[i*3+2]+2)>7) dVel[i].z*=-1;
+  }
+  dustGeo.attributes.position.needsUpdate = true;
+
+  // Burst
+  if(burstT>0){
+    burstT -= dt;
+    const bp = burstGeo.attributes.position.array;
+    for(let i=0;i<PBURST;i++){
+      bp[i*3]  += bVel[i].x*dt*60;
+      bp[i*3+1]+= bVel[i].y*dt*60;
+      bp[i*3+2]+= bVel[i].z*dt*60;
+      bVel[i].y+= bVel[i].gy*dt*60;
+    }
+    burstGeo.attributes.position.needsUpdate = true;
+    burstMat.opacity = Math.max(0, burstT/1.8);
+  } else { burstMat.opacity=0; }
+
+  // Lightning
+  updateLightning(dt);
+
+  // Door smooth lerp
+  doorOpen += (doorTarget - doorOpen) * dt * 3.5;
+  const ang = doorOpen * Math.PI * 0.62;
+  leftPanel.pivot.rotation.y  = -ang;
+  rightPanel.pivot.rotation.y =  ang;
+
+  // Door shake
+  if(doorShakeT>0){
+    doorShakeT -= dt;
+    doorGrp.position.x = Math.sin(t*55)*0.14 * (doorShakeT/.55);
+  } else { doorShakeT=0; doorGrp.position.x=0; }
+
+  // Lock gem spin + pulse
+  lockGem.rotation.y = t*1.8;
+  lockGem.rotation.x = t*.9;
+  lockMat.emissiveIntensity = 1.8 + Math.sin(t*2.5)*.6;
+
+  // Rune brightness
+  const runeI = 0.7 + Math.sin(t*3)*.4;
+  leftPanel.runeMat.emissiveIntensity  = runeI;
+  rightPanel.runeMat.emissiveIntensity = runeI;
+
+  // Floating orbs (constellation around door lock)
+  orbMeshes.forEach((o,i) => {
+    const a = t*.7 + i*(Math.PI*2/5);
+    const r = 0.55 + Math.sin(t*.5+i)*.08;
+    o.position.set(Math.cos(a)*r, Math.sin(a*.6)*r*.5, Math.sin(a)*r*.4);
+    o.material.emissiveIntensity = 0.3 + Math.sin(t*2+i)*.3;
+  });
+
+  // Purple light breathe
+  purplePoint.intensity = 3.5 + Math.sin(t*.8)*.8;
+  purplePoint.position.y = 6 + Math.sin(t*.5);
+
+  // Gold light fade
+  goldPoint.intensity *= 0.97;
+
+  renderer.render(scene,camera);
+}
+animate();
+
+window.addEventListener('resize',()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+// ─────────────────────────────────────────────
+// SPEECH
+// ─────────────────────────────────────────────
+let voices = [];
+window.speechSynthesis.onvoiceschanged = () => { voices = speechSynthesis.getVoices(); };
+setTimeout(()=>{ voices = speechSynthesis.getVoices(); }, 300);
+
+function pickVoice() {
+  // Prefer a clear English voice, ideally British or US
+  return voices.find(v=> /en-(GB|US|AU)/i.test(v.lang) && !/(google|zira|david)/i.test(v.name))
+      || voices.find(v=> /en/i.test(v.lang))
+      || null;
+}
+
+function speak(text, rate=0.78, onEnd=null) {
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate  = rate;
+  u.pitch = 0.88;
+  const v = pickVoice();
+  if(v) u.voice = v;
+  if(onEnd) u.onend = onEnd;
+  speechSynthesis.speak(u);
+}
+
+// ─────────────────────────────────────────────
+// UI HELPERS
+// ─────────────────────────────────────────────
+function setInstruction(txt, color='#e9d5ff') {
+  instruction.textContent = txt;
+  instruction.style.color = color;
+}
+
+function renderDots() {
+  tapDotsEl.innerHTML = '';
+  const max = Math.max(taps, 1);
+  for(let i=0;i<max;i++){
+    const d = document.createElement('div');
+    d.className = 'dot' + (i < taps ? ' lit' : '');
+    tapDotsEl.appendChild(d);
+  }
+}
+
+function showFeedback(txt, color, dur=1200) {
+  feedbackEl.textContent = txt;
+  feedbackEl.style.color = color;
+  feedbackEl.style.opacity = '1';
+  clearTimeout(feedbackEl._t);
+  feedbackEl._t = setTimeout(()=>{ feedbackEl.style.opacity='0'; }, dur);
+}
+
+function flashTapBtn() {
+  tapBtn.style.boxShadow = '0 0 80px rgba(167,139,250,1), 0 0 140px rgba(139,92,246,.8)';
+  setTimeout(()=>{ tapBtn.style.boxShadow=''; },180);
+}
+
+function triggerBurst() {
+  // Reset positions
+  const bp = burstGeo.attributes.position.array;
+  for(let i=0;i<PBURST;i++){
+    bp[i*3]=bOrigin.x; bp[i*3+1]=bOrigin.y; bp[i*3+2]=bOrigin.z;
+    const theta=Math.random()*Math.PI*2, phi=Math.random()*Math.PI;
+    const spd=Math.random()*.12+.03;
+    bVel[i]={x:Math.sin(phi)*Math.cos(theta)*spd, y:Math.cos(phi)*spd+.04,
+              z:Math.sin(phi)*Math.sin(theta)*spd*.6, gy:-.004};
+  }
+  burstGeo.attributes.position.needsUpdate=true;
+  burstT = 1.8;
+}
+
+// ─────────────────────────────────────────────
+// GAME LOGIC
+// ─────────────────────────────────────────────
+function shuffle(a) {
+  const b=[...a];
+  for(let i=b.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [b[i],b[j]]=[b[j],b[i]];
+  }
+  return b;
+}
+
+// Difficulty ladder per curriculum-mapping.md
+// Round 0 (1st): Supported  — word shown on screen after speaking
+// Round 1 (2nd): Reduced    — word spoken only, repeat allowed
+// Round 2 (3rd): Independent — spoken only, NO repeat
+function supportLevel(idx) {
+  if(idx===0) return 'full';    // visual text shown
+  if(idx===1) return 'audio';   // audio only, repeat ok
+  return 'independent';          // audio only, no repeat
+}
+
+function startGame() {
+  score=0; roundIdx=0;
+  words = shuffle(ALL_WORDS).slice(0,3);
+  starEls.forEach(s=>s.classList.remove('earned'));
+  startScr.style.display='none';
+  endScr.style.display='none';
+  tapDotsEl.innerHTML='';
+  closeDoor();
+  startRound();
+}
+
+function startRound() {
+  if(roundIdx>=3){ endGame(); return; }
+
+  taps=0;
+  phase='speaking';
+  const lvl = supportLevel(roundIdx);
+  canRepeat = (lvl !== 'independent');
+
+  roundLabel.textContent = `Round ${roundIdx+1} of 3`;
+  setInstruction('Listen closely…');
+  wordReveal.style.opacity='0';
+  suppLabel.style.opacity='0';
+  castBtn.style.display='none';
+  tapBtn.classList.add('disabled');
+  repeatBtn.style.display = canRepeat ? 'block' : 'none';
+  renderDots();
+  closeDoor();
+
+  // Whisper effect: speak the word
+  setTimeout(()=>{
+    lockMat.emissiveIntensity = 4; // flash gem
+    purplePoint.intensity = 8;
+
+    const word = words[roundIdx].w;
+    speak(word, 0.72, ()=>{
+      // After speaking → if supported, reveal text
+      if(lvl==='full'){
+        wordReveal.textContent = word.toUpperCase();
+        wordReveal.style.opacity='1';
+        suppLabel.style.opacity='1';
+      }
+      // Enable tapping
+      phase='tapping';
+      setInstruction('Tap once for each syllable');
+      tapBtn.classList.remove('disabled');
+    });
+  }, 700);
+}
+
+function onTap() {
+  if(phase!=='tapping') return;
+  taps++;
+  renderDots();
+  castBtn.style.display='block';
+  flashTapBtn();
+
+  // Small light pulse
+  purplePoint.intensity = 7;
+  setTimeout(()=>{ purplePoint.intensity=3.5; },140);
+}
+
+function onCast() {
+  if(phase!=='tapping' || taps===0) return;
+  phase='judging';
+
+  const word     = words[roundIdx];
+  const correct  = (taps === word.s);
+
+  // Hide controls
+  tapBtn.classList.add('disabled');
+  castBtn.style.display='none';
+  repeatBtn.style.display='none';
+
+  if(correct){
+    score++;
+    starEls[roundIdx].classList.add('earned');
+    showFeedback('✦', '#ffd700', 1500);
+    setInstruction(`✓  "${word.w}" — ${word.s} syllable${word.s>1?'s':''}!`, '#86efac');
+
+    openDoor();
+    triggerBurst();
+    goldPoint.intensity = 6;
+
+    speak(`Excellent! ${word.w} has ${word.s} syllable${word.s>1?'s':''}. The door opens!`, 0.85, ()=>{
+      setTimeout(()=>{ roundIdx++; startRound(); }, 600);
+    });
+  } else {
+    showFeedback('✗', '#ef4444', 1500);
+    setInstruction(`"${word.w}" has ${word.s} syllable${word.s>1?'s':''}`, '#fca5a5');
+    shakeDoor();
+    flashLightning();
+
+    speak(`Not quite. ${word.w} has ${word.s} syllable${word.s>1?'s':''}. Try the next one.`, 0.85, ()=>{
+      setTimeout(()=>{ roundIdx++; startRound(); }, 600);
+    });
+  }
+
+  wordReveal.style.opacity='0';
+  suppLabel.style.opacity='0';
+}
+
+function onRepeat() {
+  if(phase!=='tapping' || !canRepeat) return;
+  taps=0;
+  renderDots();
+  castBtn.style.display='none';
+  phase='speaking';
+  tapBtn.classList.add('disabled');
+  speak(words[roundIdx].w, 0.72, ()=>{
+    phase='tapping';
+    tapBtn.classList.remove('disabled');
+  });
+}
+
+function endGame() {
+  phase='end';
+  endScr.style.display='flex';
+
+  const titles  = ['Keep Practicing','Well Done!','✦ Master Wizard! ✦'];
+  const msgs    = [
+    'The syllable arts take time. Every great wizard started here.',
+    `You cracked ${score} of 3 doors! Your spell power is growing.`,
+    'All three doors unlocked! Your syllable magic is formidable.',
+  ];
+  const speeches = [
+    `You unlocked ${score} doors. Keep going — every wizard starts this way.`,
+    `Well done! You unlocked ${score} out of 3 doors. Your powers are growing!`,
+    'Congratulations, Master Wizard! You unlocked all three doors!',
+  ];
+
+  document.getElementById('end-title').textContent = titles[score];
+  document.getElementById('end-score').textContent  = `${score} / 3 doors unlocked`;
+  document.getElementById('end-msg').textContent    = msgs[score];
+
+  if(score===3){ triggerBurst(); openDoor(); goldPoint.intensity=5; }
+  speak(speeches[score], 0.9);
+}
+
+// ─────────────────────────────────────────────
+// EVENT LISTENERS
+// ─────────────────────────────────────────────
+tapBtn.addEventListener('pointerdown', e=>{ e.preventDefault(); onTap(); });
+castBtn.addEventListener('pointerdown', e=>{ e.preventDefault(); onCast(); });
+repeatBtn.addEventListener('pointerdown', e=>{ e.preventDefault(); onRepeat(); });
+document.getElementById('start-btn').addEventListener('pointerdown', e=>{ e.preventDefault(); startGame(); });
+document.getElementById('play-again').addEventListener('pointerdown', e=>{ e.preventDefault(); startGame(); });
+
+// Prevent long-press context menu on mobile
+document.addEventListener('contextmenu', e=>e.preventDefault());
+</script>
+</body>
+</html>
