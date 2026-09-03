@@ -1,0 +1,965 @@
+<title>The Letter Door</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@500;600;700;800&display=swap">
+<style>
+  /* ============================================================
+     The Letter Door — See, Write from Memory (Letter Unit)
+     Single committed theme: a cozy dusk world. All colors painted
+     explicitly so the page holds on any host ground.
+     ============================================================ */
+  :root{
+    --night:#2a2140;        /* page ground: deep dusk violet */
+    --night-deep:#221a35;
+    --dusk:#453763;         /* raised panels */
+    --dusk-soft:#57487a;
+    --parchment:#f6e8cf;    /* writing surface */
+    --parchment-dim:#eadbbe;
+    --ink:#3b2e22;          /* letterform ink */
+    --ember:#f2a65a;        /* accent / glow */
+    --ember-deep:#d97f33;
+    --moss:#7fb069;         /* success */
+    --moss-deep:#5e8f4c;
+    --rose:#d96a6a;         /* baseline red */
+    --sky:#7fa7d9;          /* top-line blue */
+    --cream-text:#f3ead9;
+    --lav-text:#c9bde4;
+    --wood-1:#8a5a35;
+    --wood-2:#6f4527;
+    --brass:#e0b25c;
+    --brass-deep:#a9762f;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(120% 90% at 50% -10%, #4a3a6e 0%, var(--night) 55%, var(--night-deep) 100%);
+    color:var(--cream-text);
+    font-family:"Nunito", "Segoe UI", system-ui, sans-serif;
+    min-height:100vh;
+    display:flex; flex-direction:column; align-items:center;
+    overscroll-behavior:none;
+  }
+  h1,h2,h3,.display{ font-family:"Baloo 2","Nunito",system-ui,sans-serif; }
+
+  /* ---------- frame ---------- */
+  #app{
+    width:100%; max-width:540px;
+    padding:10px 14px 26px;
+    display:flex; flex-direction:column; align-items:stretch;
+    gap:10px;
+  }
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:4px 2px 0;
+  }
+  header .brand{
+    font-family:"Baloo 2",sans-serif; font-weight:800; font-size:1.25rem;
+    letter-spacing:.02em; color:var(--cream-text);
+    display:flex; align-items:center; gap:.5rem;
+  }
+  header .brand .spark{ color:var(--ember); }
+
+  /* Always-available "hear it again" — Vision doc requirement */
+  #btnReplay{
+    display:flex; align-items:center; gap:.45rem;
+    background:var(--dusk); color:var(--cream-text);
+    border:2px solid var(--dusk-soft);
+    border-radius:999px; padding:.5rem .95rem;
+    font-family:"Baloo 2",sans-serif; font-weight:700; font-size:1rem;
+    cursor:pointer; box-shadow:0 3px 0 rgba(0,0,0,.35);
+    transition:transform .08s ease;
+  }
+  #btnReplay:active{ transform:translateY(2px); box-shadow:0 1px 0 rgba(0,0,0,.35); }
+  #btnReplay.talking{ border-color:var(--ember); color:var(--ember); }
+  #btnReplay svg{ display:block; }
+
+  /* ---------- door scene ---------- */
+  #scene{
+    position:relative;
+    height:150px;
+    display:flex; align-items:flex-end; justify-content:center;
+    margin-bottom:-2px;
+  }
+  #doorWrap{ position:relative; width:190px; height:142px; perspective:600px; }
+  #arch{
+    position:absolute; inset:0;
+    background:linear-gradient(#5b4a7e,#4a3b66);
+    border-radius:95px 95px 0 0;
+    box-shadow:inset 0 0 0 7px #382b55, 0 -4px 24px rgba(242,166,90,.08);
+  }
+  #glow{
+    position:absolute; inset:7px 7px 0;
+    border-radius:88px 88px 0 0;
+    background:radial-gradient(80% 90% at 50% 65%, #ffd98a 0%, #f2a65a 55%, #d97f33 100%);
+    opacity:0; transition:opacity 1s ease;
+  }
+  #door{
+    position:absolute; inset:7px 7px 0;
+    border-radius:88px 88px 0 0;
+    background:
+      repeating-linear-gradient(90deg, transparent 0 34px, rgba(0,0,0,.18) 34px 36px),
+      linear-gradient(#96653c, var(--wood-1) 40%, var(--wood-2));
+    box-shadow:inset 0 0 0 4px rgba(58,36,16,.55);
+    transform-origin:left center;
+    transition:transform 1.2s cubic-bezier(.6,0,.3,1);
+  }
+  #door.open{ transform:rotateY(-84deg); }
+  #door .knob{
+    position:absolute; right:16px; top:78px; width:13px; height:13px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #f5d78a, var(--brass-deep));
+    box-shadow:0 1px 3px rgba(0,0,0,.5);
+  }
+  /* padlocks across the door */
+  #locks{
+    position:absolute; left:0; right:0; top:52px;
+    display:flex; justify-content:center; gap:9px;
+    pointer-events:none;
+  }
+  .lock{ position:relative; width:26px; height:34px; transition:opacity .6s, transform .6s; }
+  .lock .shackle{
+    position:absolute; left:5px; top:0; width:16px; height:15px;
+    border:4px solid #cfd6dd; border-bottom:none;
+    border-radius:10px 10px 0 0;
+    transform-origin:right bottom;
+    transition:transform .5s cubic-bezier(.5,-.4,.5,1.4);
+  }
+  .lock .body{
+    position:absolute; left:0; top:12px; width:26px; height:21px;
+    border-radius:6px;
+    background:linear-gradient(160deg, #f0c775, var(--brass) 45%, var(--brass-deep));
+    box-shadow:0 2px 3px rgba(0,0,0,.45);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .lock .body::after{
+    content:""; width:5px; height:8px;
+    background:#4d3413; border-radius:3px 3px 1px 1px;
+  }
+  .lock.done .shackle{ transform:rotate(-42deg) translateY(-3px); border-color:var(--moss); }
+  .lock.done{ transform:translateY(-4px); }
+  .lock.done .body{ background:linear-gradient(160deg,#b8d8a2,var(--moss) 50%,var(--moss-deep)); }
+  #ground{
+    position:absolute; bottom:0; left:0; right:0; height:10px;
+    background:linear-gradient(#3d3160,#332852);
+    border-radius:6px;
+  }
+  .sparkle{
+    position:absolute; font-size:14px; color:var(--ember);
+    animation:pop 1.1s ease-out forwards; pointer-events:none;
+    text-shadow:0 0 8px rgba(242,166,90,.9);
+  }
+  @keyframes pop{
+    0%{ transform:translateY(0) scale(.4); opacity:0; }
+    25%{ opacity:1; }
+    100%{ transform:translateY(-46px) scale(1.15) rotate(20deg); opacity:0; }
+  }
+
+  /* ---------- speech bubble ---------- */
+  #bubble{
+    background:var(--dusk);
+    border:2px solid var(--dusk-soft);
+    border-radius:16px;
+    padding:.65rem 1rem;
+    font-size:1.05rem; font-weight:700; line-height:1.35;
+    text-align:center; color:var(--cream-text);
+    min-height:2.6rem;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #bubble b{ color:var(--ember); }
+
+  /* ---------- writing card ---------- */
+  #card{
+    position:relative;
+    align-self:center;
+    width:fit-content;
+    background:
+      radial-gradient(140% 110% at 50% 0%, #fdf3de 0%, var(--parchment) 60%, var(--parchment-dim) 100%);
+    border-radius:22px;
+    box-shadow:0 8px 0 rgba(0,0,0,.28), inset 0 0 0 3px rgba(59,46,34,.12);
+    padding:8px;
+  }
+  #pad{ display:block; width:100%; touch-action:none; border-radius:16px; }
+  #cardBadge{
+    position:absolute; top:-11px; left:50%; transform:translateX(-50%);
+    background:var(--ember); color:#4d2f10;
+    font-family:"Baloo 2",sans-serif; font-weight:800; font-size:.86rem;
+    letter-spacing:.06em; text-transform:uppercase;
+    border-radius:999px; padding:.18rem .85rem;
+    box-shadow:0 2px 0 rgba(0,0,0,.25);
+    white-space:nowrap;
+  }
+  #card.vanish #pad{ animation:vanish .9s ease forwards; }
+  @keyframes vanish{
+    0%{ filter:none; opacity:1; }
+    60%{ filter:blur(3px); opacity:.35; }
+    100%{ filter:blur(0); opacity:1; }
+  }
+
+  /* ---------- buttons ---------- */
+  #controls{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .btn{
+    font-family:"Baloo 2",sans-serif; font-weight:800; font-size:1.18rem;
+    border:none; border-radius:16px; cursor:pointer;
+    padding:.7rem 1.5rem; color:#4d2f10;
+    background:linear-gradient(#f7bd7d, var(--ember));
+    box-shadow:0 5px 0 var(--ember-deep);
+    transition:transform .08s ease, box-shadow .08s ease;
+  }
+  .btn:active{ transform:translateY(4px); box-shadow:0 1px 0 var(--ember-deep); }
+  .btn.quiet{
+    background:var(--dusk); color:var(--lav-text);
+    box-shadow:0 5px 0 #2e2449;
+    font-size:1.02rem; padding:.7rem 1.1rem;
+  }
+  .btn.go{
+    background:linear-gradient(#a8cf92, var(--moss));
+    box-shadow:0 5px 0 var(--moss-deep); color:#1f3313;
+  }
+  .btn:disabled{ opacity:.45; cursor:default; }
+  .btn.big{ font-size:1.35rem; padding:.9rem 1.7rem; }
+
+  /* ---------- screens ---------- */
+  .screen{ display:none; flex-direction:column; gap:12px; }
+  .screen.on{ display:flex; }
+
+  #home{ text-align:center; gap:16px; padding-top:6px; }
+  #home h1{ margin:.2rem 0 0; font-size:1.9rem; font-weight:800; text-wrap:balance; }
+  #home p{ margin:0 auto; max-width:38ch; color:var(--lav-text); font-weight:600; line-height:1.45; }
+  #caseBtns{ display:flex; flex-direction:column; gap:12px; align-items:center; }
+  .caseBtn{
+    width:min(320px, 100%);
+    display:flex; align-items:center; gap:14px;
+    background:var(--dusk); border:2px solid var(--dusk-soft);
+    border-radius:18px; padding:.7rem 1rem; cursor:pointer;
+    color:var(--cream-text); text-align:left;
+    box-shadow:0 5px 0 #2e2449;
+    transition:transform .08s ease, box-shadow .08s ease, border-color .15s;
+  }
+  .caseBtn:active{ transform:translateY(4px); box-shadow:0 1px 0 #2e2449; }
+  .caseBtn:hover{ border-color:var(--ember); }
+  .caseBtn .glyph{
+    font-family:"Baloo 2",sans-serif; font-weight:800; font-size:1.7rem;
+    background:var(--parchment); color:var(--ink);
+    width:64px; height:56px; border-radius:12px; flex:none;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .caseBtn .lab{ font-family:"Baloo 2",sans-serif; font-weight:700; font-size:1.2rem; }
+  .caseBtn .sub{ font-size:.85rem; color:var(--lav-text); font-weight:600; }
+
+  /* ---------- result overlay ---------- */
+  #overlay{
+    position:fixed; inset:0; display:none;
+    align-items:center; justify-content:center;
+    background:rgba(26,19,44,.66); z-index:50; padding:20px;
+  }
+  #overlay.on{ display:flex; }
+  #resultCard{
+    background:var(--dusk); border:3px solid var(--dusk-soft);
+    border-radius:24px; padding:22px 26px 24px;
+    width:min(360px,100%); text-align:center;
+    box-shadow:0 12px 40px rgba(0,0,0,.5);
+    animation:rise .35s ease;
+  }
+  @keyframes rise{ from{ transform:translateY(24px) scale(.94); opacity:0; } }
+  #resultCard h2{ margin:.2rem 0 .3rem; font-size:1.6rem; }
+  #resultCard h2.good{ color:var(--moss); } #resultCard h2.try{ color:var(--ember); }
+  #stars{ font-size:2rem; letter-spacing:.2rem; min-height:2.4rem; }
+  #stars .lit{ color:var(--ember); text-shadow:0 0 10px rgba(242,166,90,.7); }
+  #stars .dim{ color:#5a4d7d; }
+  #matchNote{ font-size:.82rem; color:var(--lav-text); font-weight:600; margin:.1rem 0 .9rem; }
+  #resultBtns{ display:flex; gap:10px; justify-content:center; }
+
+  #footNote{
+    text-align:center; font-size:.74rem; color:#8d7fb0; font-weight:600;
+    line-height:1.5; max-width:46ch; margin:4px auto 0;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    #door, .lock, .lock .shackle{ transition:none; }
+    .sparkle{ animation:none; opacity:0; }
+    #card.vanish #pad{ animation:none; }
+    #resultCard{ animation:none; }
+  }
+</style>
+
+<div id="app">
+  <header>
+    <div class="brand"><span class="spark">✦</span> The Letter Door</div>
+    <button id="btnReplay" aria-label="Hear it again">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+      Hear it again
+    </button>
+  </header>
+
+  <div id="scene">
+    <div id="doorWrap">
+      <div id="arch"></div>
+      <div id="glow"></div>
+      <div id="door">
+        <div class="knob"></div>
+        <div id="locks"></div>
+      </div>
+      <div id="ground"></div>
+    </div>
+  </div>
+
+  <div id="bubble">…</div>
+
+  <!-- HOME -->
+  <section id="home" class="screen on">
+    <h1>Open the magic door</h1>
+    <p>Watch a letter appear. Poof — it vanishes! Write it from memory with your finger to open a lock.</p>
+    <div id="caseBtns">
+      <button class="caseBtn" data-case="lower">
+        <span class="glyph">a b c</span>
+        <span><span class="lab">Lowercase letters</span><br><span class="sub">a &nbsp;b &nbsp;c &nbsp;d &nbsp;…</span></span>
+      </button>
+      <button class="caseBtn" data-case="upper">
+        <span class="glyph">A B C</span>
+        <span><span class="lab">Uppercase letters</span><br><span class="sub">A &nbsp;B &nbsp;C &nbsp;D &nbsp;…</span></span>
+      </button>
+      <button class="caseBtn" data-case="mixed">
+        <span class="glyph">A a</span>
+        <span><span class="lab">Both together</span><br><span class="sub">A &nbsp;a &nbsp;B &nbsp;b &nbsp;…</span></span>
+      </button>
+    </div>
+    <p id="footNote">See, Write from Memory · Letter Unit · 52 variants (26 letters × 2 cases) · Success at 70% match · Prototype narration uses your browser's voice.</p>
+  </section>
+
+  <!-- ACTIVITY -->
+  <section id="activity" class="screen">
+    <div id="card">
+      <div id="cardBadge">Watch</div>
+      <canvas id="pad"></canvas>
+    </div>
+    <div id="controls"></div>
+  </section>
+</div>
+
+<!-- RESULT OVERLAY -->
+<div id="overlay">
+  <div id="resultCard">
+    <h2 id="resultTitle"></h2>
+    <div id="stars"></div>
+    <div id="matchNote"></div>
+    <div id="resultBtns"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ============================================================
+   STROKE DATA — 52 letters in a unit space:
+   x: 0..100 · y: 0 top line, 50 midline, 100 baseline, 140 descender
+   Commands: M x y · L x y · Q cx cy x y · A cx cy rx ry a0 a1 (deg)
+   Stroke order & direction follow common manuscript instruction.
+   ============================================================ */
+const S = {
+A:[['M',50,2,'L',22,100],['M',50,2,'L',78,100],['M',33,64,'L',67,64]],
+B:[['M',27,2,'L',27,100],['A',27,26,42,24,-90,90],['A',27,75,48,25,-90,90]],
+C:[['A',52,50,30,48,-45,-315]],
+D:[['M',27,2,'L',27,100],['A',27,51,52,49,-90,90]],
+E:[['M',28,2,'L',28,100],['M',28,2,'L',76,2],['M',28,50,'L',70,50],['M',28,100,'L',76,100]],
+F:[['M',28,2,'L',28,100],['M',28,2,'L',76,2],['M',28,50,'L',70,50]],
+G:[['A',50,50,30,48,-45,-330],['M',52,58,'L',78,58]],
+H:[['M',25,2,'L',25,100],['M',75,2,'L',75,100],['M',25,52,'L',75,52]],
+I:[['M',50,2,'L',50,100],['M',32,2,'L',68,2],['M',32,100,'L',68,100]],
+J:[['M',62,2,'L',62,74,'A',44,74,18,24,0,180]],
+K:[['M',27,2,'L',27,100],['M',72,2,'L',27,55],['M',27,55,'L',72,100]],
+L:[['M',30,2,'L',30,100,'L',76,100]],
+M:[['M',22,2,'L',22,100],['M',22,2,'L',50,64,'L',78,2],['M',78,2,'L',78,100]],
+N:[['M',25,2,'L',25,100],['M',25,2,'L',75,100],['M',75,2,'L',75,100]],
+O:[['A',50,51,30,49,-90,-450]],
+P:[['M',27,2,'L',27,100],['A',27,27,48,25,-90,90]],
+Q:[['A',50,51,30,49,-90,-450],['M',58,68,'L',82,102]],
+R:[['M',27,2,'L',27,100],['A',27,27,46,25,-90,90],['M',27,52,'L',74,100]],
+S:[['M',72,14,'Q',50,-4,34,16,'Q',18,38,48,50,'Q',80,62,66,84,'Q',50,106,26,88]],
+T:[['M',50,2,'L',50,100],['M',22,2,'L',78,2]],
+U:[['M',25,2,'L',25,60,'A',50,60,25,38,180,0,'L',75,2]],
+V:[['M',24,2,'L',50,100,'L',76,2]],
+W:[['M',18,2,'L',34,100,'L',50,34,'L',66,100,'L',82,2]],
+X:[['M',26,2,'L',74,100],['M',74,2,'L',26,100]],
+Y:[['M',25,2,'L',50,52],['M',75,2,'L',50,52,'L',50,100]],
+Z:[['M',25,2,'L',75,2,'L',25,100,'L',75,100]],
+a:[['A',48,76,21,24,-40,-400],['M',69,54,'L',69,100]],
+b:[['M',30,2,'L',30,100],['A',51,76,21,23,180,540]],
+c:[['A',50,76,22,24,-40,-320]],
+d:[['A',48,76,21,23,-40,-400],['M',69,2,'L',69,100]],
+e:[['M',30,74,'L',70,74,'A',50,76,20,23,-5,-300]],
+f:[['A',56,22,16,20,-20,-180,'L',40,100],['M',28,52,'L',60,52]],
+g:[['A',48,76,21,23,-40,-400],['M',69,52,'L',69,116,'A',51,116,18,20,0,180]],
+h:[['M',30,2,'L',30,100],['A',49,78,19,26,180,360,'L',68,100]],
+i:[['M',50,52,'L',50,100],['A',50,30,2.5,2.5,0,359]],
+j:[['M',56,52,'L',56,116,'A',38,116,18,20,0,180],['A',56,30,2.5,2.5,0,359]],
+k:[['M',30,2,'L',30,100],['M',64,52,'L',31,79,'L',66,100]],
+l:[['M',50,2,'L',50,100]],
+m:[['M',26,52,'L',26,100],['A',37,79,11,25,180,360,'L',48,100],['A',59,79,11,25,180,360,'L',70,100]],
+n:[['M',31,52,'L',31,100],['A',49,79,18,26,180,360,'L',67,100]],
+o:[['A',50,76,22,24,-40,-400]],
+p:[['M',30,52,'L',30,138],['A',52,76,21,23,180,540]],
+q:[['A',48,76,21,23,-40,-400],['M',69,52,'L',69,134,'L',79,124]],
+r:[['M',34,52,'L',34,100],['A',51,77,17,25,180,315]],
+s:[['M',66,58,'Q',48,46,37,57,'Q',28,66,49,73,'Q',70,80,61,90,'Q',51,102,32,93]],
+t:[['M',50,8,'L',50,100],['M',33,52,'L',67,52]],
+u:[['M',30,52,'L',30,78,'A',49,78,19,21,180,0,'L',68,52,'L',68,100]],
+v:[['M',31,52,'L',50,100,'L',69,52]],
+w:[['M',24,52,'L',37,100,'L',50,60,'L',63,100,'L',76,52]],
+x:[['M',32,52,'L',68,100],['M',68,52,'L',32,100]],
+y:[['M',31,52,'L',50,100],['M',69,52,'L',38,136]],
+z:[['M',32,52,'L',68,52,'L',32,100,'L',68,100]]
+};
+
+/* ---------- sampling ---------- */
+const STEP = 2; // unit distance between samples
+function sampleStroke(cmds){
+  const pts=[]; let i=0, cur=null;
+  const push=p=>{ if(!cur || Math.hypot(p[0]-cur[0],p[1]-cur[1])>1e-6){ pts.push(p); cur=p; } };
+  const lineTo=(a,b)=>{ const d=Math.hypot(b[0]-a[0],b[1]-a[1]); const n=Math.max(1,Math.ceil(d/STEP));
+    for(let k=1;k<=n;k++) push([a[0]+(b[0]-a[0])*k/n, a[1]+(b[1]-a[1])*k/n]); };
+  while(i<cmds.length){
+    const c=cmds[i];
+    if(c==='M'){ push([cmds[i+1],cmds[i+2]]); i+=3; }
+    else if(c==='L'){ lineTo(cur,[cmds[i+1],cmds[i+2]]); i+=3; }
+    else if(c==='Q'){ const p0=cur,cx=cmds[i+1],cy=cmds[i+2],x=cmds[i+3],y=cmds[i+4];
+      const approx=Math.hypot(cx-p0[0],cy-p0[1])+Math.hypot(x-cx,y-cy);
+      const n=Math.max(4,Math.ceil(approx/STEP));
+      for(let k=1;k<=n;k++){ const t=k/n,mt=1-t;
+        push([mt*mt*p0[0]+2*mt*t*cx+t*t*x, mt*mt*p0[1]+2*mt*t*cy+t*t*y]); }
+      i+=5; }
+    else if(c==='A'){ const cx=cmds[i+1],cy=cmds[i+2],rx=cmds[i+3],ry=cmds[i+4],a0=cmds[i+5],a1=cmds[i+6];
+      const arcLen=Math.abs(a1-a0)/360*Math.PI*(rx+ry); const n=Math.max(6,Math.ceil(arcLen/STEP));
+      const start = cur===null?0:1;
+      for(let k=1-start;k<=n;k++){ const a=(a0+(a1-a0)*k/n)*Math.PI/180;
+        push([cx+rx*Math.cos(a), cy+ry*Math.sin(a)]); }
+      i+=7; }
+    else i++;
+  }
+  return pts;
+}
+const LETTER_PTS = {}; // letter -> array of sampled strokes
+for(const k in S) LETTER_PTS[k] = S[k].map(sampleStroke);
+
+function pathLen(pts){ let L=0; for(let i=1;i<pts.length;i++) L+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]); return L; }
+
+/* ============================================================
+   SCORING — coverage + precision, anti-scribble length factor,
+   stroke-direction check. Success ≥ 70 (per activity spec).
+   ============================================================ */
+function scoreDrawing(letter, rawStrokes){
+  const target = LETTER_PTS[letter];
+  const tPts = target.flat();
+  let uPts = rawStrokes.flat();
+  if(uPts.length < 4) return { score:0, cov:0, prec:0 };
+
+  // gentle alignment: forgive a modest overall shift (≤12 units),
+  // so an honest letter drawn slightly off-center isn't punished —
+  // but a mirror-image error still can't slide into place.
+  const cent = pts=>{ let x=0,y=0; for(const p of pts){ x+=p[0]; y+=p[1]; } return [x/pts.length, y/pts.length]; };
+  const tc=cent(tPts), uc=cent(uPts);
+  const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+  const dx=clamp(tc[0]-uc[0],-12,12), dy=clamp(tc[1]-uc[1],-12,12);
+  const userStrokes = rawStrokes.map(st=>st.map(p=>[p[0]+dx, p[1]+dy]));
+  uPts = userStrokes.flat();
+
+  // tolerance scales with the letter's own size, so small x-height
+  // letters are judged as carefully as tall ones
+  let bx0=1e9,bx1=-1e9,by0=1e9,by1=-1e9;
+  for(const p of tPts){ if(p[0]<bx0)bx0=p[0]; if(p[0]>bx1)bx1=p[0]; if(p[1]<by0)by0=p[1]; if(p[1]>by1)by1=p[1]; }
+  const maxDim = Math.max(bx1-bx0, by1-by0);
+  const TOL_COV = clamp(0.14*maxDim, 8, 12), TOL_PREC = TOL_COV+2;
+  const minDist=(p, arr)=>{ let m=1e9;
+    for(let i=0;i<arr.length;i++){ const ax=p[0]-arr[i][0], ay=p[1]-arr[i][1];
+      const d=ax*ax+ay*ay; if(d<m) m=d; } return Math.sqrt(m); };
+  let covHit=0, maxMiss=0;
+  for(const p of tPts){ const d=minDist(p,uPts);
+    if(d<TOL_COV) covHit++; if(d>maxMiss) maxMiss=d; }
+  let precHit=0; for(const p of uPts) if(minDist(p,tPts)<TOL_PREC) precHit++;
+  const cov = covHit/tPts.length, prec = precHit/uPts.length;
+
+  // worst-miss penalty: a big untouched region (e.g. the stem on the
+  // wrong side of a b/d reversal) sinks the score even if most points match
+  const missStart = TOL_COV+5;
+  const missFactor = maxMiss<=missStart ? 1 : Math.max(.35, 1-(maxMiss-missStart)/29*.65);
+
+  // anti-coloring-in: heavily over-long input scales down
+  const tLen = target.reduce((s,st)=>s+pathLen(st),0);
+  const uLen = userStrokes.reduce((s,st)=>s+pathLen(st),0);
+  const lenFactor = uLen > 2.3*tLen ? Math.max(.4, (2.3*tLen)/uLen) : 1;
+
+  // direction: each substantial user stroke matched to nearest target stroke
+  let rev=0, checked=0;
+  for(const us of userStrokes){
+    if(us.length<6 || pathLen(us)<18) continue;
+    let best=null, bestD=1e9;
+    for(const ts of target){
+      if(ts.length<6) continue;
+      const d=Math.min(
+        Math.hypot(us[0][0]-ts[0][0],us[0][1]-ts[0][1]) + Math.hypot(us[us.length-1][0]-ts[ts.length-1][0],us[us.length-1][1]-ts[ts.length-1][1]),
+        Math.hypot(us[0][0]-ts[ts.length-1][0],us[0][1]-ts[ts.length-1][1]) + Math.hypot(us[us.length-1][0]-ts[0][0],us[us.length-1][1]-ts[0][1])
+      );
+      if(d<bestD){ bestD=d; best=ts; }
+    }
+    if(!best) continue;
+    checked++;
+    const fwd = Math.hypot(us[0][0]-best[0][0],us[0][1]-best[0][1]);
+    const bwd = Math.hypot(us[0][0]-best[best.length-1][0],us[0][1]-best[best.length-1][1]);
+    if(bwd + 8 < fwd) rev++;
+  }
+  const dirFactor = checked ? 1 - .15*(rev/checked) : 1;
+
+  const score = Math.round(100*(0.55*cov + 0.45*prec)*lenFactor*dirFactor*missFactor);
+  return { score, cov, prec, maxMiss };
+}
+
+/* ============================================================
+   AUDIO — narration via speechSynthesis (prototype stand-in per
+   Vision doc) + tiny WebAudio chimes.
+   ============================================================ */
+const Narrator = {
+  lastText:'',
+  voice:null,
+  pick(){
+    const vs = speechSynthesis.getVoices().filter(v=>v.lang && v.lang.startsWith('en'));
+    this.voice = vs.find(v=>/natural|neural/i.test(v.name))
+              || vs.find(v=>/google/i.test(v.name)) || vs[0] || null;
+  },
+  say(text, opts={}){
+    this.lastText = text;
+    try{
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      if(!this.voice) this.pick();
+      if(this.voice) u.voice = this.voice;
+      u.rate = .95; u.pitch = 1.05;
+      const btn = document.getElementById('btnReplay');
+      u.onstart = ()=>btn.classList.add('talking');
+      u.onend = ()=>btn.classList.remove('talking');
+      u.onerror = ()=>btn.classList.remove('talking');
+      speechSynthesis.speak(u);
+    }catch(e){}
+  },
+  replay(){ if(this.lastText) this.say(this.lastText); }
+};
+if('speechSynthesis' in window){
+  speechSynthesis.onvoiceschanged = ()=>Narrator.pick();
+}
+document.getElementById('btnReplay').addEventListener('click', ()=>Narrator.replay());
+
+let audioCtx=null;
+function chime(kind){
+  try{
+    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const t = audioCtx.currentTime;
+    const notes = kind==='win' ? [523,659,784,1047] : kind==='unlock' ? [392,523] : [330,262];
+    notes.forEach((f,i)=>{
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      o.type='sine'; o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t+i*.12);
+      g.gain.exponentialRampToValueAtTime(.18,t+i*.12+.02);
+      g.gain.exponentialRampToValueAtTime(.0001,t+i*.12+.5);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(t+i*.12); o.stop(t+i*.12+.55);
+    });
+  }catch(e){}
+}
+
+/* ============================================================
+   CANVAS — one pad for demo + writing, same spatial frame.
+   Unit viewport: x -2..102 · y -10..146
+   ============================================================ */
+const pad = document.getElementById('pad');
+const ctx = pad.getContext('2d');
+const VX0=-2, VX1=102, VY0=-10, VY1=146;
+let px=1; // pixels per unit
+function resizePad(){
+  const availW = (document.getElementById('app').clientWidth || 500) - 44;
+  const availH = Math.max(300, window.innerHeight - 330); // room for door, bubble, buttons
+  px = Math.min(availW/(VX1-VX0), availH/(VY1-VY0));
+  const w = px*(VX1-VX0), h = px*(VY1-VY0);
+  const dpr = Math.min(2, window.devicePixelRatio||1);
+  pad.style.width = w+'px'; pad.style.height = h+'px';
+  pad.width = Math.round(w*dpr); pad.height = Math.round(h*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  redraw();
+}
+const U2X = x => (x-VX0)*px;
+const U2Y = y => (y-VY0)*px;
+const X2U = x => x/px + VX0;
+const Y2U = y => y/px + VY0;
+
+function drawGuides(){
+  const w = pad.clientWidth;
+  ctx.save();
+  // top line (sky blue)
+  ctx.strokeStyle='rgba(127,167,217,.85)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(8,U2Y(2)); ctx.lineTo(w-8,U2Y(2)); ctx.stroke();
+  // midline (dashed)
+  ctx.strokeStyle='rgba(127,167,217,.55)'; ctx.setLineDash([7,7]);
+  ctx.beginPath(); ctx.moveTo(8,U2Y(50)); ctx.lineTo(w-8,U2Y(50)); ctx.stroke();
+  ctx.setLineDash([]);
+  // baseline (rose)
+  ctx.strokeStyle='rgba(217,106,106,.9)'; ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.moveTo(8,U2Y(100)); ctx.lineTo(w-8,U2Y(100)); ctx.stroke();
+  ctx.restore();
+}
+function strokePath(pts, color, widthU, alpha=1){
+  if(pts.length===0) return;
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  ctx.strokeStyle=color; ctx.fillStyle=color;
+  ctx.lineWidth=widthU*px; ctx.lineCap='round'; ctx.lineJoin='round';
+  if(pts.length===1){
+    ctx.beginPath(); ctx.arc(U2X(pts[0][0]),U2Y(pts[0][1]),widthU*px/2,0,7); ctx.fill();
+  }else{
+    ctx.beginPath(); ctx.moveTo(U2X(pts[0][0]),U2Y(pts[0][1]));
+    for(let i=1;i<pts.length;i++) ctx.lineTo(U2X(pts[i][0]),U2Y(pts[i][1]));
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function arrowAt(pts, frac, color){
+  if(pts.length<2) return;
+  const idx = Math.max(1, Math.min(pts.length-1, Math.round(frac*(pts.length-1))));
+  const a=pts[idx-1], b=pts[idx];
+  const ang=Math.atan2(b[1]-a[1],b[0]-a[0]);
+  const x=U2X(b[0]), y=U2Y(b[1]), s=7*px/3.2;
+  ctx.save();
+  ctx.translate(x,y); ctx.rotate(ang);
+  ctx.fillStyle=color;
+  ctx.beginPath(); ctx.moveTo(s*1.6,0); ctx.lineTo(-s,-s); ctx.lineTo(-s,s); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+function startBadge(pts, n){
+  // sit the badge a few units along the stroke, so strokes that share a
+  // start point (like a stem + bowl) get separated, legible numbers
+  let ux=pts[0][0], uy=pts[0][1], acc=0;
+  for(let i=1;i<pts.length;i++){
+    acc+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);
+    ux=pts[i][0]; uy=pts[i][1];
+    if(acc>=7) break;
+  }
+  const x=U2X(ux), y=U2Y(uy);
+  ctx.save();
+  ctx.fillStyle='#7fb069';
+  ctx.beginPath(); ctx.arc(x,y,9.2,0,7); ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.font='800 12px "Baloo 2", sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(String(n), x, y+.5);
+  ctx.restore();
+}
+
+/* ============================================================
+   GAME STATE
+   ============================================================ */
+const state = {
+  phase:'home',        // home | watch | write
+  caseMode:null,
+  round:[], idx:0,
+  tries:0,
+  userStrokes:[],      // unit-space
+  drawing:false,
+  demoTimer:null, demoProgress:null, // {strokeIdx, ptIdx}
+  hint:false,
+};
+const LOCK_COUNT = 5;
+
+function letterPool(mode){
+  const lower='abcdefghijklmnopqrstuvwxyz'.split('');
+  const upper='ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  if(mode==='lower') return lower;
+  if(mode==='upper') return upper;
+  return lower.concat(upper);
+}
+function pickRound(mode){
+  const pool=letterPool(mode).slice();
+  for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+  return pool.slice(0,LOCK_COUNT);
+}
+const caseName = ch => ch===ch.toUpperCase() ? 'uppercase' : 'lowercase';
+function curLetter(){ return state.round[state.idx]; }
+
+/* ---------- DOM helpers ---------- */
+const $ = id => document.getElementById(id);
+function setBubble(html){ $('bubble').innerHTML='<span>'+html+'</span>'; }
+function setBadge(t){ $('cardBadge').textContent=t; }
+function setControls(btns){
+  const c=$('controls'); c.innerHTML='';
+  btns.forEach(b=>{
+    const el=document.createElement('button');
+    el.className='btn '+(b.cls||'');
+    el.textContent=b.label;
+    el.addEventListener('click',b.fn);
+    if(b.id) el.id=b.id;
+    if(b.disabled) el.disabled=true;
+    c.appendChild(el);
+  });
+}
+function buildLocks(){
+  const l=$('locks'); l.innerHTML='';
+  for(let i=0;i<LOCK_COUNT;i++){
+    const d=document.createElement('div');
+    d.className='lock'+(i<state.idx?' done':'');
+    d.innerHTML='<div class="shackle"></div><div class="body"></div>';
+    l.appendChild(d);
+  }
+}
+function sparkleBurst(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const wrap=$('doorWrap');
+  for(let i=0;i<10;i++){
+    const s=document.createElement('div');
+    s.className='sparkle'; s.textContent=['✦','✧','⋆'][i%3];
+    s.style.left=(20+Math.random()*150)+'px';
+    s.style.top=(40+Math.random()*70)+'px';
+    s.style.animationDelay=(Math.random()*.3)+'s';
+    wrap.appendChild(s);
+    setTimeout(()=>s.remove(),1600);
+  }
+}
+
+/* ============================================================
+   PHASES
+   ============================================================ */
+function goHome(){
+  stopDemo();
+  state.phase='home';
+  $('home').classList.add('on'); $('activity').classList.remove('on');
+  $('door').classList.remove('open'); $('glow').style.opacity=0;
+  state.idx=0; buildLocks();
+  setBubble('Pick your letters to begin!');
+  Narrator.say('Welcome to the Letter Door! Five magic locks hold it shut. Pick lowercase letters, uppercase letters, or both together.');
+}
+function startRound(mode){
+  state.caseMode=mode;
+  state.round=pickRound(mode);
+  state.idx=0;
+  $('home').classList.remove('on'); $('activity').classList.add('on');
+  $('door').classList.remove('open'); $('glow').style.opacity=0;
+  buildLocks();
+  resizePad(); // section was display:none until now — size the canvas first
+  startWatch(true);
+}
+
+/* ---------- WATCH: see the letter + stroke demo ---------- */
+function startWatch(narrate){
+  stopDemo();
+  state.phase='watch';
+  state.userStrokes=[]; state.hint=false;
+  const ch=curLetter();
+  setBadge('Watch');
+  setBubble(`This is <b>${caseName(ch)} ${ch}</b>. Watch how it's written!`);
+  if(narrate!==false)
+    Narrator.say(`This is the ${caseName(ch)} letter ${ch.toUpperCase()}. Watch closely how it is written. When you are ready, press the green button.`);
+  setControls([
+    {label:'▶ Watch again', cls:'quiet', fn:()=>{ playDemo(); }},
+    {label:"I'm ready!", cls:'go big', fn:startWrite},
+  ]);
+  playDemo();
+}
+function stopDemo(){ if(state.demoTimer){ cancelAnimationFrame(state.demoTimer); state.demoTimer=null; } }
+function playDemo(){
+  stopDemo();
+  const strokes = LETTER_PTS[curLetter()];
+  const speed = 90; // units per second
+  let si=0, dist=0, t0=null;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function frame(ts){
+    if(t0===null) t0=ts;
+    const dt=(ts-t0)/1000; t0=ts;
+    dist += dt*speed;
+    // draw everything up to (si, dist)
+    ctx.clearRect(0,0,pad.width,pad.height);
+    drawGuides();
+    for(let i=0;i<si;i++) drawDoneStroke(strokes[i], i);
+    if(si<strokes.length){
+      const st=strokes[si];
+      const partial=[]; let acc=0;
+      partial.push(st[0]);
+      for(let i=1;i<st.length;i++){
+        acc+=Math.hypot(st[i][0]-st[i-1][0],st[i][1]-st[i-1][1]);
+        if(acc<=dist) partial.push(st[i]); else break;
+      }
+      strokePath(partial,'#3b2e22',7);
+      startBadge(st, si+1);
+      // pencil dot
+      const tip=partial[partial.length-1];
+      ctx.save();
+      ctx.fillStyle='#f2a65a';
+      ctx.beginPath(); ctx.arc(U2X(tip[0]),U2Y(tip[1]),6.5,0,7); ctx.fill();
+      ctx.restore();
+      if(partial.length>=st.length){ si++; dist=0; }
+      state.demoTimer=requestAnimationFrame(frame);
+    }else{
+      drawFullDemo(); // final: full letter + all cues
+      state.demoTimer=null;
+    }
+  }
+  if(reduced){ drawFullDemo(); return; }
+  state.demoTimer=requestAnimationFrame(frame);
+}
+function drawDoneStroke(st,i){
+  strokePath(st,'#3b2e22',7);
+  arrowAt(st,.55,'#d97f33');
+  startBadge(st,i+1);
+}
+function drawFullDemo(){
+  ctx.clearRect(0,0,pad.width,pad.height);
+  drawGuides();
+  LETTER_PTS[curLetter()].forEach((st,i)=>drawDoneStroke(st,i));
+}
+
+/* ---------- WRITE: letter vanishes, child writes ---------- */
+function startWrite(){
+  stopDemo();
+  state.phase='write';
+  state.userStrokes=[];
+  const ch=curLetter();
+  setBadge('Your turn');
+  setBubble(`Poof! Now write <b>${caseName(ch)} ${ch}</b> from memory.`);
+  Narrator.say(`Poof! The letter vanished. Now use your finger to write the ${caseName(ch)} letter ${ch.toUpperCase()} from memory.`);
+  $('card').classList.remove('vanish'); void $('card').offsetWidth;
+  $('card').classList.add('vanish');
+  redraw();
+  refreshWriteControls();
+}
+function refreshWriteControls(){
+  const has = state.userStrokes.length>0;
+  setControls([
+    {label:'👀 Show me again', cls:'quiet', fn:()=>startWatch(true)},
+    {label:'Clear', cls:'quiet', fn:()=>{ state.userStrokes=[]; redraw(); refreshWriteControls(); }},
+    {label:'✓ Check it!', cls:'go big', fn:checkDrawing, disabled:!has, id:'btnCheck'},
+  ]);
+}
+function redraw(){
+  ctx.clearRect(0,0,pad.width,pad.height);
+  drawGuides();
+  if(state.phase==='watch'){ drawFullDemo(); return; }
+  if(state.phase==='write'){
+    if(state.hint){
+      LETTER_PTS[curLetter()].forEach(st=>strokePath(st,'#3b2e22',7,.13));
+    }
+    state.userStrokes.forEach(st=>strokePath(st,'#d97f33',7));
+  }
+}
+
+/* pointer input */
+let liveStroke=null;
+pad.addEventListener('pointerdown', e=>{
+  if(state.phase!=='write') return;
+  pad.setPointerCapture(e.pointerId);
+  const r=pad.getBoundingClientRect();
+  liveStroke=[[X2U(e.clientX-r.left), Y2U(e.clientY-r.top)]];
+  state.userStrokes.push(liveStroke);
+  state.drawing=true; redraw();
+});
+pad.addEventListener('pointermove', e=>{
+  if(!state.drawing || !liveStroke) return;
+  const r=pad.getBoundingClientRect();
+  const p=[X2U(e.clientX-r.left), Y2U(e.clientY-r.top)];
+  const last=liveStroke[liveStroke.length-1];
+  if(Math.hypot(p[0]-last[0],p[1]-last[1])>.8){ liveStroke.push(p); redraw(); }
+});
+function endStroke(){
+  if(!state.drawing) return;
+  state.drawing=false; liveStroke=null;
+  refreshWriteControls();
+}
+pad.addEventListener('pointerup', endStroke);
+pad.addEventListener('pointercancel', endStroke);
+
+/* ---------- CHECK ---------- */
+function checkDrawing(){
+  const ch=curLetter();
+  const {score}=scoreDrawing(ch, state.userStrokes);
+  const pass = score>=70;
+  const stars = score>=90?3 : score>=80?2 : pass?1:0;
+  const ov=$('overlay'), title=$('resultTitle'), starEl=$('stars'), note=$('matchNote'), btns=$('resultBtns');
+  starEl.innerHTML = [1,2,3].map(n=>`<span class="${n<=stars?'lit':'dim'}">★</span>`).join('');
+  note.textContent = `Match: ${score}%`;
+  btns.innerHTML='';
+  if(pass){
+    title.textContent='The lock clicked open!';
+    title.className='good';
+    chime('unlock'); sparkleBurst();
+    Narrator.say(`You did it! You wrote ${caseName(ch)} ${ch.toUpperCase()} from memory, and the lock clicked open!`);
+    const b=document.createElement('button');
+    b.className='btn go big';
+    const last = state.idx+1>=state.round.length;
+    b.textContent = last ? 'Open the door!' : 'Next lock →';
+    b.addEventListener('click',()=>{ ov.classList.remove('on'); advance(); });
+    btns.appendChild(b);
+  }else{
+    state.tries++;
+    title.textContent='So close! Try again.';
+    title.className='try';
+    chime('soft');
+    Narrator.say(`Good try! Let's watch the letter ${ch.toUpperCase()} one more time. Then you can write it again.`);
+    const b=document.createElement('button');
+    b.className='btn big';
+    b.textContent='▶ Watch it again';
+    b.addEventListener('click',()=>{
+      ov.classList.remove('on');
+      if(state.tries>=2){ startWatchThenHint(); } else { startWatch(false); }
+    });
+    btns.appendChild(b);
+  }
+  ov.classList.add('on');
+}
+function startWatchThenHint(){
+  startWatch(false);
+  Narrator.say(`Watch one more time. This time I'll leave a little trail of moon dust to help you trace.`);
+  state.hint=true; // faint outline shown during next write
+}
+function advance(){
+  state.tries=0; state.hint=false;
+  state.idx++;
+  buildLocks();
+  if(state.idx>=state.round.length){ winDoor(); }
+  else startWatch(true);
+}
+function winDoor(){
+  state.phase='win';
+  stopDemo();
+  setBadge('Hooray!');
+  setBubble('<b>You opened the magic door!</b> ✦');
+  $('door').classList.add('open');
+  $('glow').style.opacity=1;
+  chime('win'); sparkleBurst();
+  Narrator.say('You opened the magic door! You wrote all five letters from memory. Amazing work! Play again to find new letters.');
+  ctx.clearRect(0,0,pad.width,pad.height);
+  drawGuides();
+  // show the letters conquered
+  ctx.save();
+  ctx.fillStyle='#3b2e22';
+  ctx.font=`800 ${Math.round(34*px/3.2)}px "Baloo 2", sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(state.round.join('  '), pad.clientWidth/2, U2Y(60));
+  ctx.fillStyle='#d97f33';
+  ctx.font=`700 ${Math.round(13*px/3.2)}px "Nunito", sans-serif`;
+  ctx.fillText('You wrote all of these from memory!', pad.clientWidth/2, U2Y(112));
+  ctx.restore();
+  setControls([
+    {label:'Play again', cls:'go big', fn:()=>startRound(state.caseMode)},
+    {label:'Choose letters', cls:'quiet', fn:goHome},
+  ]);
+}
+
+/* ---------- wire up ---------- */
+document.querySelectorAll('.caseBtn').forEach(b=>{
+  b.addEventListener('click',()=>startRound(b.dataset.case));
+});
+window.addEventListener('resize', resizePad);
+
+/* debug hook: validates stroke data — a perfect trace should score high */
+window.__selfTest = function(){
+  const out={};
+  for(const k in LETTER_PTS){
+    out[k]=scoreDrawing(k, LETTER_PTS[k].map(st=>st.map(p=>[p[0]+1.5,p[1]-1]))).score;
+  }
+  return out;
+};
+
+buildLocks();
+resizePad();
+goHome();
+</script>
